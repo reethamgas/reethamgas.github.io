@@ -163,6 +163,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 .krow .n{width:20px;color:var(--muted);font-weight:700;text-align:center}
 .krow .mv{display:flex;gap:4px;margin-left:auto}
 .btn.wa{background:#1fa855;border-color:#1fa855;color:#fff}
+.mtab{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+.mtab th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;text-align:right;padding:6px 6px;border-bottom:1px solid var(--line)}
+.mtab th:first-child,.mtab td:first-child{text-align:left}
+.mtab td{text-align:right;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.mtab td small{display:block;color:var(--muted);font-size:11.5px}
+.mtab tbody tr{cursor:pointer}
+.mtab tbody tr:hover,.mtab tbody tr[aria-selected="true"]{background:var(--brand-soft)}
+.mtab tfoot td{font-weight:700;border-bottom:0}
+.mtab .due{color:var(--red);font-weight:600}
+.mwrap{overflow-x:auto}
+.mfilt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;background:var(--brand-soft);border-radius:8px;padding:6px 10px}
 .fsec{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--brand-soft);border-radius:10px;padding:8px 10px;margin-top:6px}
 .fsec input{flex:1 1 160px;min-width:0;font-weight:700;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .fsec .ft{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -296,7 +307,13 @@ details.card summary{cursor:pointer;font-weight:600}
 </main>
 
 <main id="viewSaved" class="wrap" hidden style="grid-template-columns:minmax(0,1fr);max-width:860px">
+  <section class="card" id="monthCard">
+    <div class="label">Month by month</div>
+    <div class="mwrap" id="monthSum"><div class="empty">Save an estimate or bill to see monthly totals.</div></div>
+    <p class="hint">Tap a month to see only that month's estimates and bills.</p>
+  </section>
   <section class="card">
+    <div class="mfilt" id="monthFilt" hidden><span id="monthFiltText"></span><button class="btn sm" id="monthAll" type="button">Show all months</button></div>
     <div class="filters">
       <input id="search" type="search" placeholder="Search customer, phone or bill no." aria-label="Search">
       <button class="chip" data-f="all" aria-pressed="true">All</button>
@@ -1033,6 +1050,7 @@ $('pdfBtn').addEventListener('click',async()=>{
 });
 
 /* ---------- saved list ---------- */
+document.addEventListener('click',e=>{ if(e.target&&e.target.id==='monthAll'){ monthSel=''; renderSaved(); } });
 function buildLookups(){
   catalog=new Map(); customers=new Map(); itemsMap=new Map();
   [...docsList].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)).forEach(d=>{
@@ -1043,9 +1061,34 @@ function buildLookups(){
   catalogArr=[...catalog.values()].sort((a,b)=>a.name.localeCompare(b.name));
   $('custList').innerHTML=[...customers.values()].map(v=>`<option value="${esc(v.name)}">`).join('');
 }
+let monthSel='';
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthOf = d => String(d.date||'').slice(0,7);
+const monthName = k => { const [y,m]=k.split('-'); return MON[Number(m)-1]?MON[Number(m)-1]+' '+y:'No date'; };
+const rs0 = n => '₹'+Math.round(Number(n)||0).toLocaleString('en-IN');
+function renderMonths(){
+  const box=$('monthSum');
+  if(!docsList.length){ box.innerHTML='<div class="empty">Save an estimate or bill to see monthly totals.</div>'; return; }
+  const by=new Map(), all={ec:0,ev:0,bc:0,bv:0,rec:0,due:0};
+  docsList.forEach(d=>{
+    const k=monthOf(d); if(!by.has(k)) by.set(k,{ec:0,ev:0,bc:0,bv:0,rec:0,due:0});
+    const m=by.get(k), t=Number(d.total)||0;
+    [m,all].forEach(x=>{ if(d.type==='bill'){ const r=Number(d.received)||0; x.bc++; x.bv+=t; x.rec+=r; x.due+=Math.max(0,t-r); } else { x.ec++; x.ev+=t; } });
+  });
+  const keys=[...by.keys()].sort().reverse();
+  const cell=(c,v,l)=>c?`${rs0(v)}<small>${c} ${l}${c===1?'':'s'}</small>`:'<span style="color:var(--muted)">–</span>';
+  box.innerHTML=`<table class="mtab"><thead><tr><th>Month</th><th>Estimates</th><th>Bills</th><th>Received</th><th>Due</th></tr></thead><tbody>${keys.map(k=>{ const m=by.get(k);
+    return `<tr data-m="${esc(k)}" aria-selected="${k===monthSel}" tabindex="0"><td><b>${monthName(k)}</b></td><td>${cell(m.ec,m.ev,'estimate')}</td><td>${cell(m.bc,m.bv,'bill')}</td><td>${m.bc?rs0(m.rec):'–'}</td><td class="${m.due>0?'due':''}">${m.bc?rs0(m.due):'–'}</td></tr>`; }).join('')}</tbody>
+    ${keys.length>1?`<tfoot><tr><td>All time</td><td>${cell(all.ec,all.ev,'estimate')}</td><td>${cell(all.bc,all.bv,'bill')}</td><td>${rs0(all.rec)}</td><td class="${all.due>0?'due':''}">${rs0(all.due)}</td></tr></tfoot>`:''}</table>`;
+  box.querySelectorAll('tbody tr').forEach(tr=>{ const go=()=>{ monthSel=monthSel===tr.dataset.m?'':tr.dataset.m; renderSaved(); if(monthSel) $('list').scrollIntoView({behavior:'smooth',block:'start'}); };
+    tr.addEventListener('click',go); tr.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } }); });
+}
 function renderSaved(){
+  renderMonths();
+  $('monthFilt').hidden=!monthSel; if(monthSel) $('monthFiltText').textContent='Showing '+monthName(monthSel)+' only.';
   const q=$('search').value.trim().toLowerCase();
   const rows=docsList.filter(d=>{
+    if(monthSel&&monthOf(d)!==monthSel) return false;
     if(filter==='estimate'&&d.type!=='estimate') return false;
     if(filter==='bill'&&d.type!=='bill') return false;
     if(filter==='due'&&!(d.type==='bill'&&r2((d.total||0)-(d.received||0))>0)) return false;
