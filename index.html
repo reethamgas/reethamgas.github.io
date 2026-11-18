@@ -123,6 +123,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sheet .low .l .gap{height:6px}
 .sheet .low .r{flex:0 0 42%;align-self:start;border-bottom:2px solid #8a8a8a}
 .sheet .low .r>div{display:flex;justify-content:space-between;padding:6px 6px}
+.noadmin #kitCard,.noadmin #itemsCard,.noadmin #bizCard{display:none!important}
+.noadmin .items input[readonly],.noadmin textarea[readonly]{background:var(--bg);color:var(--muted);cursor:not-allowed}
+.noadmin .adminTip{display:none}
+body:not(.noadmin) .staffTip{display:none}
 .sheet .imp{margin-top:20px;border:1.5px solid #9a90e2;border-radius:6px;padding:10px 14px 12px;background:#f6f4ff;font-size:13.5px;line-height:18px}
 .sheet .imp b.h{display:block;color:#4b3fb5;font-size:14.5px;margin-bottom:6px}
 .sheet .imp ol{margin:0;padding-left:20px;display:grid;gap:3px}
@@ -263,7 +267,7 @@ details.card summary{cursor:pointer;font-weight:600}
       <datalist id="unitList"><option value="FEET"><option value="Nos"><option value="Pcs"><option value="Mtr"><option value="Set"><option value="Kg"><option value="Job"></datalist>
       <div class="rateAll" id="rateAll" hidden><span id="rateAllText"></span><button class="btn sm primary" id="rateAllBtn" type="button">Save all as new rates</button></div>
       <div><button class="btn" id="addItem" type="button">+ Add item</button></div>
-      <p class="hint">Only items with a quantity go on the PDF. Change a rate and you can save it as the new rate for next time. Tap ▾ to pick any other item.</p>
+      <p class="hint">Only items with a quantity go on the PDF. <span class="adminTip">Change a rate and you can save it as the new rate for next time.</span><span class="staffTip">Rates are set by the owner in the website admin. Use Discount for a lower price.</span> Tap ▾ to pick any other item.</p>
     </section>
 
     <section class="card">
@@ -292,7 +296,7 @@ details.card summary{cursor:pointer;font-weight:600}
     </section>
 
     <section class="card">
-      <div class="field"><label class="label" for="terms">Terms and conditions</label><textarea id="terms" rows="3"></textarea></div>
+      <div class="field"><label class="label" for="terms">Terms and conditions</label><textarea id="terms" rows="3"></textarea><p class="hint" id="termsLock" hidden>Terms and important points are set by the owner in the website admin.</p></div>
       <div class="field" style="max-width:220px"><label class="label" for="termsSize">Terms text size on PDF</label><select id="termsSize"><option value="s">Small</option><option value="m">Normal</option><option value="l">Large</option></select></div>
       <div class="secondary">
         <button class="btn ghost" id="newEstimate" type="button">New estimate</button>
@@ -326,6 +330,11 @@ details.card summary{cursor:pointer;font-weight:600}
     </div>
     <div class="list" id="list"><div class="empty">Your saved estimates and bills will show here. Make one on the Make tab and press Save.</div></div>
   </section>
+  <section class="card" id="adminLock" hidden>
+    <div class="label">Rates, terms and important points</div>
+    <p class="hint" style="font-size:14px">These are set by the owner in the website admin, Bill Maker tab. They can't be changed here.</p>
+    <div><a class="btn" href="https://www.reethamgasservices.com/admin" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">Open website admin</a></div>
+  </section>
   <details class="card" id="kitCard">
     <summary>Item lists for each type of work</summary>
     <p class="hint">These items load, in this order, when you tap that type of work on the Make tab. Leave the rate empty for things like labour that change every job.</p>
@@ -347,7 +356,7 @@ details.card summary{cursor:pointer;font-weight:600}
     <div class="list" id="itemRows"></div>
   </details>
   <details class="card" id="bizCard">
-    <summary>Business details and default terms</summary>
+    <summary>Business details, terms and important points</summary>
     <div class="field"><label class="label" for="bizName">Business name</label><input id="bizName"></div>
     <div class="field"><label class="label" for="bizAddr">Address</label><textarea id="bizAddr" rows="2"></textarea></div>
     <div class="row">
@@ -356,6 +365,9 @@ details.card summary{cursor:pointer;font-weight:600}
     </div>
     <div class="field"><label class="label" for="bizTermsE">Default terms for estimates</label><textarea id="bizTermsE" rows="3"></textarea></div>
     <div class="field"><label class="label" for="bizTermsB">Default terms for bills</label><textarea id="bizTermsB" rows="2"></textarea></div>
+    <div class="field"><label class="label" for="bizImpS">Important points: steel estimates (one point per line)</label><textarea id="bizImpS" rows="7"></textarea></div>
+    <div class="field"><label class="label" for="bizImpC">Important points: copper estimates (one point per line)</label><textarea id="bizImpC" rows="5"></textarea></div>
+    <p class="hint">In the points, <b>{foot}</b> becomes the pipe price per foot, <b>{valve}</b> the valve price and <b>{valves}</b> the number of valves on that estimate. So when a rate changes, the points change by themselves.</p>
     <div><button class="btn primary" id="saveBiz" type="button">Save details</button></div>
   </details>
 </main>
@@ -537,8 +549,17 @@ const DEFAULTS = {
   phone:'7901234363',
   email:'Reethamgasservices@gmail.com',
   termsEstimate:'50% ADVANCE\n30% AGAINST MATERIAL SUPPLY\n20% IMMEDIATELY AFTER COMPLETION OF WORK',
-  termsBill:BILL_TERMS
+  termsBill:BILL_TERMS,
+  impSteel:'This is an estimate, not the final bill. The final bill is made on the actual feet fitted at your home ({foot} per foot). More feet means a higher bill, fewer feet means a lower bill.\n{valves} ON/OFF control valves are mandatory ({valve} each).\nIncluded in the pipe and valve price: bends, couplings, clamps, nails, welding rods, Teflon tape, wall drilling and tile holing.\nFrom customer side: only cement filling / patch work after drilling.\nThe customer must provide a gas cylinder for the flame test.\nLeak-proof testing must be done before the wall is concealed. If the wall is concealed without this test, the customer is responsible.',
+  impCopper:'This is an estimate, not the final bill. The final bill is made on the actual feet fitted at your home ({foot} per foot). More feet means a higher bill, fewer feet means a lower bill.\n{valves} ON/OFF control valves are mandatory ({valve} each).\nWe use insulated copper pipe only.\nCopper life is a maximum of 5 years. Copper corrodes and can break, so there is no warranty and no guarantee after installation.'
 };
+/* Rates, terms, important points and business details come from the website admin (www.reethamgasservices.com/admin, Bill Maker tab).
+   Once they have loaded, nobody can change them here. If the website can't be reached and nothing is cached, the old in-app editing stays. */
+const REMOTE_URL = 'https://www.reethamgasservices.com/api/billmaker';
+let remote = null; try{ remote = JSON.parse(localStorage.getItem('rbm-remote')||'null'); }catch(e){}
+const isAdmin = () => !remote;
+function remoteSettings(base){ return !remote?base:{...base,...(remote.business||{}),termsEstimate:remote.termsEstimate,termsBill:remote.termsBill,impSteel:remote.impSteel,impCopper:remote.impCopper}; }
+function remoteKits(){ return remote&&Array.isArray(remote.kits)&&remote.kits.length?JSON.parse(JSON.stringify(remote.kits)):null; }
 let settings = {...DEFAULTS};
 let db = null, downloads = null;
 let docsList = [], itemDocs = [];
@@ -663,17 +684,11 @@ function impPoints(d,items){
   if(d.type==='bill'||d.category==='com') return '';
   const copper=d.kit==='res-copper'||items.some(it=>/copper/i.test(it.name));
   const pipe=items.find(it=>/copper|ss\s*304|stainless|pipe/i.test(it.name)), valve=items.find(it=>/valve/i.test(it.name));
-  const fp=Number(pipe&&pipe.price||(copper?450:850)).toLocaleString('en-IN'), vp=Number(valve&&valve.price||(copper?1500:1750)).toLocaleString('en-IN'), vq=valve&&Number(valve.qty)>0?qtyFmt(valve.qty):'2';
-  const p1=`This is an estimate, not the final bill. The final bill is made on the actual feet fitted at your home (&#8377;${fp} per foot). More feet means a higher bill, fewer feet means a lower bill.`;
-  const p2=`${vq} ON/OFF control valves are mandatory (&#8377;${vp} each).`;
-  const pts=copper?[p1,p2,
-   `We use insulated copper pipe only.`,
-   `Copper life is a maximum of 5 years. Copper corrodes and can break, so there is no warranty and no guarantee after installation.`]
-  :[p1,p2,
-   `Included in the pipe and valve price: bends, couplings, clamps, nails, welding rods, Teflon tape, wall drilling and tile holing.`,
-   `From customer side: only cement filling / patch work after drilling.`,
-   `The customer must provide a gas cylinder for the flame test.`,
-   `Leak-proof testing must be done before the wall is concealed. If the wall is concealed without this test, the customer is responsible.`];
+  const rs=n=>'&#8377;'+Number(n).toLocaleString('en-IN');
+  const tag={foot:rs(pipe&&pipe.price||(copper?450:850)),valve:rs(valve&&valve.price||(copper?1500:1750)),valves:valve&&Number(valve.qty)>0?qtyFmt(valve.qty):'2'};
+  const pts=String((copper?settings.impCopper:settings.impSteel)||'').split('\n').map(t=>t.trim()).filter(Boolean)
+    .map(t=>esc(t).replace(/\{(foot|valve|valves)\}/g,(m,k)=>tag[k]));
+  if(!pts.length) return '';
   return `<div class="imp"><b class="h">Important Points</b><ol>${pts.map(p=>`<li>${p}</li>`).join('')}</ol></div>`;
 }
 function renderSheet(){
@@ -876,11 +891,19 @@ function refresh(){
     const ae=document.activeElement;
     if(ae!==$('discPct')&&cur.discMode==='amt') $('discPct').value=s.disc>0?pctFmt(s.pct):'';
     if(ae!==$('discAmt')&&cur.discMode==='pct') $('discAmt').value=s.disc>0?s.disc:'';
-    renderSheet(); updateState(); checkBillNo(); updateRateUI();
+    renderSheet(); updateState(); checkBillNo(); updateRateUI(); applyLocks();
     if(cur.floors&&cur.floors.length) $('items').querySelectorAll('.ft').forEach(e=>{ const t=r2(usedItems(cur.items).filter(it=>secOf(it,cur.floors)===e.dataset.sec).reduce((a,it)=>a+lineAmt(it),0)); e.textContent=t>0?money(t):''; });
   });
 }
 function markDirty(){ dirty=true; refresh(); }
+function applyLocks(){
+  const adm=isAdmin();
+  document.body.classList.toggle('noadmin',!adm);
+  $('adminLock').hidden=adm;
+  $('terms').readOnly=!adm; $('termsSize').disabled=!adm; $('termsLock').hidden=adm;
+  cur.items.forEach((it,i)=>{ const p=$('items').querySelector(`.item[data-i="${i}"] [data-k=price]`); if(p){ const lk=!adm&&stdRate(it.name)!=null; p.readOnly=lk; p.title=lk?'Only the admin can change this rate':''; } });
+  if(!adm){ $('rateAll').hidden=true; $('items').querySelectorAll('.ratechg').forEach(b=>b.hidden=true); }
+}
 function updateState(){
   const st=$('state'), word=cur.type==='bill'?'bill':'estimate';
   if(dirty){ st.textContent=curId?'Changes not saved':`New ${word}, not saved`; st.classList.add('dirty'); }
@@ -966,6 +989,7 @@ async function upsertItems(items){
     if(!it.name) continue;
     const ex=itemsMap.get(it.name.trim().toLowerCase());
     if(ex&&(ex.unit||'')===(it.unit||'')&&Number(ex.price)===Number(it.price)) continue;
+    if(ex&&!isAdmin()) continue;
     try{
       if(ex) await db.doc('items/'+ex.id).update({unit:it.unit||'',price:Number(it.price)||0,updatedAt:Date.now()});
       else await db.doc('items/'+itemSlug(it.name)).set({name:it.name.trim(),unit:it.unit||'',price:Number(it.price)||0,use:'both',autoRes:false,autoCom:false,updatedAt:Date.now()});
@@ -1152,11 +1176,13 @@ function fillBiz(){
   if(document.activeElement&&document.activeElement.closest('#bizCard')) return;
   $('bizName').value=settings.name; $('bizAddr').value=settings.address; $('bizPhone').value=settings.phone;
   $('bizEmail').value=settings.email; $('bizTermsE').value=settings.termsEstimate; $('bizTermsB').value=settings.termsBill;
+  $('bizImpS').value=settings.impSteel; $('bizImpC').value=settings.impCopper;
 }
 $('saveBiz').addEventListener('click',async()=>{
   if(!db){ toast('Saving is off in this view.'); return; }
   const s={name:$('bizName').value.trim()||DEFAULTS.name,address:$('bizAddr').value.trim(),phone:$('bizPhone').value.trim(),
-    email:$('bizEmail').value.trim(),termsEstimate:$('bizTermsE').value,termsBill:$('bizTermsB').value};
+    email:$('bizEmail').value.trim(),termsEstimate:$('bizTermsE').value,termsBill:$('bizTermsB').value,
+    impSteel:$('bizImpS').value.trim()||DEFAULTS.impSteel,impCopper:$('bizImpC').value.trim()||DEFAULTS.impCopper};
   try{ await db.doc('settings/main').set(s); settings={...DEFAULTS,...s}; renderSheet(); toast('Business details saved.'); }
   catch(e){ toast('Could not save. Try again.'); }
 });
@@ -1227,7 +1253,16 @@ $('waClose').addEventListener('click',()=>$('waBox').hidden=true);
 $('waLink').addEventListener('click',()=>setTimeout(()=>$('waBox').hidden=true,300));
 
 /* ---------- start ---------- */
+settings=remoteSettings(settings); kits=remoteKits()||kits;
 cur=blank('estimate'); fillForm(); fillBiz(); renderItemRows(); renderKitEditor(true);
+fetch(REMOTE_URL,{cache:'no-store'}).then(r=>r.ok?r.json():null).then(r=>{
+  if(!r||!Array.isArray(r.kits)) return;
+  remote=r; try{ localStorage.setItem('rbm-remote',JSON.stringify(r)); }catch(e){}
+  settings=remoteSettings(settings); kits=remoteKits()||kits;
+  kits=kits.map(k=>k.id!=='res-copper'?k:{...k,items:k.items.map(v=>/valve/i.test(v.name)&&Number(v.price)===1750?{...v,price:1500}:v)});
+  if(!curId&&!dirty){ cur.terms=cur.type==='bill'?settings.termsBill:settings.termsEstimate; applyKit(cur,kitById(cur.kit)||kitFor(cur.category)); }
+  renderKitSeg(); fillForm(); fillBiz();
+}).catch(()=>{});
 (async()=>{
   const use=window.claude&&window.claude.use?window.claude.use.bind(window.claude):null;
   if(!use){ setSync('Could not reach Google. Check the internet and reload.',true); return; }
@@ -1245,14 +1280,15 @@ cur=blank('estimate'); fillForm(); fillBiz(); renderItemRows(); renderKitEditor(
     buildLookups(); renderItemRows();
   },()=>{});
   db.doc('settings/kits').onSnapshot(s=>{
-    const l=s.exists&&s.data().list; kits=Array.isArray(l)&&l.length?l:clone(DEFAULT_KITS);
+    const l=s.exists&&s.data().list; kits=remoteKits()||(Array.isArray(l)&&l.length?l:clone(DEFAULT_KITS));
     DEFAULT_KITS.forEach(dk=>{ if(dk.floors&&!kits.some(x=>x.id===dk.id)){ const i=kits.findIndex(x=>x.cat===dk.cat); kits=[...kits]; kits.splice(i<0?kits.length:i+2,0,clone(dk)); } });
+    kits=kits.map(k=>k.id!=='res-copper'?k:{...k,items:k.items.map(v=>/valve/i.test(v.name)&&Number(v.price)===1750?{...v,price:1500}:v)});
     if(!curId&&!dirty){ const k=kitById(cur.kit)||kitFor(cur.category); applyKit(cur,k); renderItems(); }
     renderKitSeg(); renderKitEditor(); refresh();
   },()=>{});
   db.doc('settings/main').onSnapshot(s=>{
     if(!s.exists) return;
-    const old=settings; settings={...DEFAULTS,...s.data()}; fillBiz();
+    const old=settings; settings=remoteSettings({...DEFAULTS,...s.data()}); fillBiz();
     if(!curId&&!dirty){ const was=cur.type==='bill'?old.termsBill:old.termsEstimate; if(cur.terms===was){ cur.terms=cur.type==='bill'?settings.termsBill:settings.termsEstimate; $('terms').value=cur.terms; } }
     renderSheet();
   },()=>{});
