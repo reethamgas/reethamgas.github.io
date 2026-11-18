@@ -123,6 +123,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sheet .low .l .gap{height:6px}
 .sheet .low .r{flex:0 0 42%;align-self:start;border-bottom:2px solid #8a8a8a}
 .sheet .low .r>div{display:flex;justify-content:space-between;padding:6px 6px}
+.sheet .imp{margin-top:20px;border:1.5px solid #9a90e2;border-radius:6px;padding:10px 14px 12px;background:#f6f4ff;font-size:13.5px;line-height:18px}
+.sheet .imp b.h{display:block;color:#4b3fb5;font-size:14.5px;margin-bottom:6px}
+.sheet .imp ol{margin:0;padding-left:20px;display:grid;gap:3px}
 .sheet .low .r .t{background:#9a90e2;color:#fff;font-weight:700}
 
 /* ---------- item dropdown ---------- */
@@ -557,7 +560,7 @@ const DEFAULT_KITS=[
   {id:'res-floor',cat:'res',name:'Floor-wise',floors:true,items:[
     {name:'1/2 INCH STAINLESS STEEL 304',unit:'FEET',price:850},{name:'ON/OFF SAFETY NOZZLE VALVES',unit:'Nos',price:1750},{name:LAB,unit:'Nos',price:''}]},
   {id:'res-copper',cat:'res',name:'Copper',items:[
-    {name:'3/8 INCH COPPER PIPE',unit:'FEET',price:450},{name:'ON/OFF SAFETY NOZZLE VALVES',unit:'Nos',price:1750}]},
+    {name:'3/8 INCH COPPER PIPE',unit:'FEET',price:450},{name:'ON/OFF SAFETY NOZZLE VALVES',unit:'Nos',price:1500}]},
   {id:'com-kitchen',cat:'com',name:'Kitchen',items:[
     {name:'1/2 INCH MS PIPE',unit:'FEET',price:350},{name:'Die Cast Regulator',unit:'Pcs',price:3950},{name:'1/2 inch Ball Valve',unit:'Pcs',price:2900},
     {name:'Pressure Gauge',unit:'Pcs',price:1850},{name:'Nc Valves',unit:'Pcs',price:550},{name:'3/8*3/8 Flexible Pipes',unit:'Pcs',price:650},
@@ -656,6 +659,23 @@ function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clea
 function setSync(msg,warn){ const s=$('sync'); s.textContent=msg; s.classList.toggle('warn',!!warn); s.hidden=!msg; }
 
 /* ---------- the sheet ---------- */
+function impPoints(d,items){
+  if(d.type==='bill'||d.category==='com') return '';
+  const copper=d.kit==='res-copper'||items.some(it=>/copper/i.test(it.name));
+  const pipe=items.find(it=>/copper|ss\s*304|stainless|pipe/i.test(it.name)), valve=items.find(it=>/valve/i.test(it.name));
+  const fp=Number(pipe&&pipe.price||(copper?450:850)).toLocaleString('en-IN'), vp=Number(valve&&valve.price||(copper?1500:1750)).toLocaleString('en-IN'), vq=valve&&Number(valve.qty)>0?qtyFmt(valve.qty):'2';
+  const p1=`This is an estimate, not the final bill. The final bill is made on the actual feet fitted at your home (&#8377;${fp} per foot). More feet means a higher bill, fewer feet means a lower bill.`;
+  const p2=`${vq} ON/OFF control valves are mandatory (&#8377;${vp} each).`;
+  const pts=copper?[p1,p2,
+   `We use insulated copper pipe only.`,
+   `Copper life is a maximum of 5 years. Copper corrodes and can break, so there is no warranty and no guarantee after installation.`]
+  :[p1,p2,
+   `Included in the pipe and valve price: bends, couplings, clamps, nails, welding rods, Teflon tape, wall drilling and tile holing.`,
+   `From customer side: only cement filling / patch work after drilling.`,
+   `The customer must provide a gas cylinder for the flame test.`,
+   `Leak-proof testing must be done before the wall is concealed. If the wall is concealed without this test, the customer is responsible.`];
+  return `<div class="imp"><b class="h">Important Points</b><ol>${pts.map(p=>`<li>${p}</li>`).join('')}</ol></div>`;
+}
 function renderSheet(){
   const d=cur, isBill=d.type==='bill', word=isBill?'Invoice':'Estimate';
   const items=usedItems(d.items), s=sums(d), c=d.customer||{};
@@ -680,7 +700,7 @@ function renderSheet(){
   <div class="low">
     <div class="l"><div class="wh" style="display:grid;gap:6px"><b>${word} Amount In Words</b><div>${amountWords(s.total)}</div></div>${d.terms&&d.terms.trim()?`<div class="gap"></div><b>Terms And Conditions</b><div class="terms ${d.termsSize||'m'}">${d.terms.trim().split('\n').map(t=>`<div class="tl">${esc(t)}</div>`).join('')}</div>`:''}</div>
     <div class="r"><div><span>Sub Total</span><span class="num">${money(s.sub)}</span></div>${s.disc>0?`<div><span>Discount (${pctFmt(s.pct)}%)</span><span class="num">${money(s.disc)}</span></div>`:''}<div class="t"><span>Total</span><span class="num">${money(s.total)}</span></div>${isBill?`<div><span>Received</span><span class="num">${money(s.rec)}</span></div><div><span>Balance</span><span class="num">${money(s.bal)}</span></div>`:''}${s.disc>0?`<div><span>You Saved</span><span class="num">${money(s.disc)}</span></div>`:''}</div>
-  </div>`;
+  </div>${impPoints(d,items)}`;
   fitPreview();
 }
 function fitPreview(){
